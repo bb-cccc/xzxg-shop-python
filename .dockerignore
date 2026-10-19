@@ -1,0 +1,10 @@
+*.db
+*.pyc
+__pycache__/
+.pytest_cache/
+.venv/
+backend_py_uploads/
+.env
+frontend/node_modules/
+frontend/dist/
+

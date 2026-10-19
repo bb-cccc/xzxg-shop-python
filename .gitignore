@@ -1,0 +1,13 @@
+.env
+*.db
+*.pyc
+__pycache__/
+.pytest_cache/
+.venv/
+backend_py_uploads/
+quality/reports/
+.idea/
+.vscode/
+frontend/node_modules/
+frontend/dist/
+
