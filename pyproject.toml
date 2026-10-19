@@ -11,6 +11,11 @@ dependencies = [
     "pydantic>=2.7,<3",
     "pydantic-settings>=2.6,<3",
     "bcrypt>=4.2,<5",
+    "SQLAlchemy>=2.0,<3",
+    "greenlet>=3.0,<4",
+    "alembic>=1.14,<2",
+    "aiosqlite>=0.20,<1",
+    "aiomysql>=0.2,<1",
 ]
 
 
