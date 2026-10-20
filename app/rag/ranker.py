@@ -65,7 +65,7 @@ def score_candidate(candidate: Candidate, query: str, required_terms: list[str] 
     # 标题和正文合并用于命中统计，但标题另计更高区分度。
     title_score = 1.0 if any(
         term in candidate.title.lower()
-        for term in terms
+        for term in termsintegrations
     ) else 0.0
 
     term_ratio = _matches(text, terms) / len(terms) if terms else 0.0
