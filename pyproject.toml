@@ -8,14 +8,22 @@ version = "0.1.0"
 description = "Python refactor workspace for xzxg-shop"
 requires-python = ">=3.11"
 dependencies = [
-    "pydantic>=2.7,<3",
-    "pydantic-settings>=2.6,<3",
-    "bcrypt>=4.2,<5",
-    "SQLAlchemy>=2.0,<3",
-    "greenlet>=3.0,<4",
-    "alembic>=1.14,<2",
-    "aiosqlite>=0.20,<1",
-    "aiomysql>=0.2,<1",
+  "fastapi>=0.115,<1",
+  "uvicorn[standard]>=0.32,<1",
+  "pydantic>=2.7,<3",
+  "pydantic-settings>=2.6,<3",
+  "SQLAlchemy>=2.0,<3",
+  "greenlet>=3.0,<4",
+  "alembic>=1.14,<2",
+  "aiosqlite>=0.20,<1",
+  "aiomysql>=0.2,<1",
+  "cryptography>=42,<47",
+  "bcrypt>=4.2,<5",
+  "httpx>=0.27,<1",
+  "Pillow>=10,<13",
+  "python-multipart>=0.0.9,<1",
+  "minio>=7.2,<8",
+  "redis>=5,<6"
 ]
 
 
