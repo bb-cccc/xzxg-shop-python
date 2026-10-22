@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+#   安全模块：负责密码摘要、token 和认证输入校验。
+
 import base64
 import hashlib
 import re
@@ -11,46 +13,44 @@ import bcrypt
 from app.core.errors import APIError
 
 
+#     hash_password：完成本模块的一步处理，并把结果返回给调用方。
 def hash_password(password: str) -> str:
-    # bcrypt 会自动生成随机盐并把盐参数编码进结果，数据库只保存这个结果即可。
     return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
 
+#     verify_password：完成本模块的一步处理，并把结果返回给调用方。
 def verify_password(stored_hash: str, password: str) -> bool:
-    """校验新 bcrypt 密码，也兼容历史 SHA-256 密码摘要。"""
     stored_hash = stored_hash.strip()
     if stored_hash.startswith(("$2a$", "$2b$", "$2y$")):
         try:
-            # bcrypt.checkpw 会从 stored_hash 中读取盐和成本参数进行比对。
             return bcrypt.checkpw(password.encode("utf-8"), stored_hash.encode("utf-8"))
         except ValueError:
             return False
-    # 旧系统只保存 SHA-256 摘要；这里只负责兼容登录，后续应升级为 bcrypt。
     return hashlib.sha256(password.encode("utf-8")).hexdigest() == stored_hash
 
 
+#     should_upgrade_password_hash：完成本模块的一步处理，并把结果返回给调用方。
 def should_upgrade_password_hash(stored_hash: str) -> bool:
-    # 非 bcrypt 格式说明仍是旧摘要，登录成功后可重新 hash 并覆盖保存。
     return not stored_hash.strip().startswith("$2")
 
 
+#     new_token：完成本模块的一步处理，并把结果返回给调用方。
 def new_token() -> str:
-    # secrets 使用操作系统安全随机源；token 本身返回给客户端，只保存其摘要。
     return "tok_" + base64.urlsafe_b64encode(secrets.token_bytes(32)).decode("ascii").rstrip("=")
 
 
+#     token_digest：完成本模块的一步处理，并把结果返回给调用方。
 def token_digest(token: str) -> str:
-    # 数据库保存摘要而不是明文 token，即使数据库泄露也不能直接冒充用户。
     return hashlib.sha256(token.strip().encode("utf-8")).hexdigest()
 
 
+#     token_expiry：完成本模块的一步处理，并把结果返回给调用方。
 def token_expiry(hours: int) -> datetime:
-    # 使用带 UTC 时区的时间，避免服务器部署在不同时区造成过期判断错误。
     return datetime.now(timezone.utc) + timedelta(hours=hours)
 
 
+#     bearer_token：完成本模块的一步处理，并把结果返回给调用方。
 def bearer_token(authorization: str | None) -> str:
-    """从 Authorization: Bearer <token> 请求头中提取 token；格式不对则返回空串。"""
     if not authorization:
         return ""
     scheme, _, value = authorization.partition(" ")
@@ -59,8 +59,8 @@ def bearer_token(authorization: str | None) -> str:
     return value.strip()
 
 
+#  校验 validate_register_input：完成本模块的一步处理，并把结果返回给调用方。
 def validate_register_input(username: str, password: str, display_name: str) -> None:
-    """集中校验注册参数；失败时抛出统一 APIError，供接口层转换为 JSON 响应。"""
     username = username.strip()
     password = password.strip()
     display_name = display_name.strip()

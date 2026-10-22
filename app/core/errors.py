@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+#   核心基础设施模块：集中管理配置、日志、限流和运行时状态。
+
 from typing import Any
 
 
+#  自定义异常类型，用于向上层表达可预期的失败。
 class APIError(Exception):
-    """可预期的接口错误，统一携带 HTTP 状态码、业务错误码和响应消息。"""
+    """An expected API error with the same shape as the Go service."""
 
+    #     init：完成本模块的一步处理，并把结果返回给调用方。
     def __init__(self, status_code: int, code: str, message: str, *, headers: dict[str, str] | None = None) -> None:
         super().__init__(message)
         self.status_code = status_code
@@ -13,6 +17,6 @@ class APIError(Exception):
         self.message = message
         self.headers = headers or {}
 
+    #     payload：完成本模块的一步处理，并把结果返回给调用方。
     def payload(self, request_id: str = "") -> dict[str, Any]:
-        # 将内部异常对象转换成稳定的 JSON 结构，避免把堆栈信息暴露给客户端。
         return {"code": self.code, "message": self.message, "request_id": request_id}

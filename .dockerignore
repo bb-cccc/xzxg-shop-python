@@ -5,6 +5,4 @@ __pycache__/
 .venv/
 backend_py_uploads/
 .env
-frontend/node_modules/
-frontend/dist/
 
