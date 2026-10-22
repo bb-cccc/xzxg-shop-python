@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-#   核心基础设施模块：集中管理配置、日志、限流和运行时状态。
+#核心基础设施模块：集中管理配置、日志、限流和运行时状态。
 
 from functools import lru_cache
 
@@ -9,14 +9,14 @@ try:
 except ImportError:  # pragma: no cover - keeps source importable before install
     from pydantic import BaseModel
 
-    #  模块中的核心类型，封装相关状态和行为。
+    #模块中的核心类型，封装相关状态和行为。
     class BaseSettings(BaseModel):  # type: ignore[no-redef]
         model_config = {"extra": "ignore"}
 
     SettingsConfigDict = dict  # type: ignore[misc,assignment]
 
 
-#  模块中的核心类型，封装相关状态和行为。
+#模块中的核心类型，封装相关状态和行为。
 class Settings(BaseSettings):
     app_env: str = "development"
     api_addr: str = "0.0.0.0:8080"
@@ -109,7 +109,7 @@ class Settings(BaseSettings):
         case_sensitive=False,
     )
 
-    #     cors_origins：完成本模块的一步处理，并把结果返回给调用方。
+    #cors_origins：完成本模块的一步处理，并把结果返回给调用方。
     @property
     def cors_origins(self) -> list[str]:
         if self.cors_allowed_origins.strip() == "*":
@@ -117,7 +117,7 @@ class Settings(BaseSettings):
         return [item.strip() for item in self.cors_allowed_origins.split(",") if item.strip()]
 
 
-#  获取 get_settings：完成本模块的一步处理，并把结果返回给调用方。
+#获取 get_settings：完成本模块的一步处理，并把结果返回给调用方。
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     return Settings()
