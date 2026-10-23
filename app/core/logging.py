@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 
 
-#configure_logging：完成本模块的一步处理，并把结果返回给调用方。
+#configure_logging 
 def configure_logging() -> None:
     logging.basicConfig(
         level=logging.INFO,

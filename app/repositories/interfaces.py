@@ -1,8 +1,6 @@
-"""仓储抽象接口：隔离业务服务与具体数据库实现。"""
-
 from __future__ import annotations
 
-# Repository 抽象接口：描述业务需要的数据操作，不绑定具体数据库。
+# 数据访问模块：把业务查询封装为异步 Repository 操作。
 
 from collections.abc import Sequence
 from datetime import datetime
@@ -13,8 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.domain.models import Account, Category, Merchant, Product, ProductSKU
 
 
+# 数据访问抽象，隔离业务逻辑与具体数据库实现。
 class Repository(Protocol):
-    """业务层依赖的持久化能力集合，可由 SQL 或测试实现满足。"""
     session: AsyncSession
 
     async def get_account_by_username(self, username: str) -> tuple[Account, str] | None: ...
@@ -36,4 +34,3 @@ class Repository(Protocol):
     async def list_categories(self) -> Sequence[Category]: ...
 
     async def list_merchants(self, page: int, page_size: int) -> tuple[list[Merchant], int]: ...
-

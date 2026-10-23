@@ -1,15 +1,9 @@
-"""数据库基础设施层：创建异步引擎、会话、表结构并初始化演示数据。
-
-数据库连接方言、历史表兼容和开发环境种子数据都集中在本模块，
-业务服务只需要依赖统一的异步会话即可。
-"""
-
 from __future__ import annotations
 
-# 数据库基础设施：创建异步连接、会话，并集中处理事务与初始化。
+# 核心基础设施模块：集中管理配置、日志、限流和运行时状态。
 
 import hashlib
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 
 from sqlalchemy import inspect, select, text
@@ -19,8 +13,8 @@ from app.core.config import Settings
 from app.domain.models import Account, AgentPrompt, AppConfig, Base, Category, Coupon, KnowledgeChunk, Merchant, Product, ProductSKU, PromotionRule
 
 
+# 规范化 normalize_database_url 
 def normalize_database_url(url: str) -> str:
-    """将常见同步数据库 URL 转换为当前异步驱动可使用的 URL。"""
     if url.startswith("sqlite:///") and not url.startswith("sqlite+aiosqlite:///"):
         return url.replace("sqlite:///", "sqlite+aiosqlite:///", 1)
     if url.startswith("mysql://"):
@@ -28,8 +22,8 @@ def normalize_database_url(url: str) -> str:
     return url
 
 
+# 创建 create_engine 
 def create_engine(settings: Settings) -> AsyncEngine:
-    """根据配置创建异步 SQLAlchemy 引擎，并设置连接池健康检查。"""
     url = normalize_database_url(settings.database_url)
     kwargs: dict[str, object] = {"echo": False, "pool_pre_ping": True}
     if url.startswith("sqlite+"):
@@ -38,26 +32,38 @@ def create_engine(settings: Settings) -> AsyncEngine:
 
 
 async def initialize_database(engine: AsyncEngine, settings: Settings) -> None:
-    """按配置创建表、补齐旧数据库字段，并在非生产环境写入演示数据。"""
-    if not settings.run_migrations:
-        return
-    async with engine.begin() as connection:
-        await connection.run_sync(Base.metadata.create_all)
-        await connection.run_sync(_ensure_phase3_compat_columns)
+    if settings.app_env.strip().lower() == "production" and settings.seed_demo_data:
+        raise RuntimeError("SEED_DEMO_DATA must be false in production")
+    schema_mode = str(getattr(settings, "database_schema_mode", "auto")).strip().lower()
+    app_env = settings.app_env.strip().lower()
+    if schema_mode == "auto" and app_env not in {"development", "dev", "test", "local"}:
+        raise RuntimeError("DATABASE_SCHEMA_MODE=auto is only allowed in development or test")
+    if schema_mode == "auto" and settings.run_migrations:
+        async with engine.begin() as connection:
+            await connection.run_sync(Base.metadata.create_all)
+            await connection.run_sync(_ensure_phase3_compat_columns)
+    elif schema_mode == "alembic" and settings.run_migrations:
+        raise RuntimeError("DATABASE_SCHEMA_MODE=alembic requires running python -m scripts.migrate before startup")
+    elif schema_mode not in {"auto", "alembic"}:
+        raise ValueError("DATABASE_SCHEMA_MODE must be auto or alembic")
+    factory = async_sessionmaker(engine, expire_on_commit=False)
     if settings.seed_demo_data and settings.app_env != "production":
-        factory = async_sessionmaker(engine, expire_on_commit=False)
         async with factory() as session:
             await seed_demo_data(session)
+    else:
+        async with factory() as session:
+            await _ensure_runtime_defaults(session)
+            await session.commit()
 
 
 def legacy_sha256(password: str) -> str:
-    """生成兼容旧演示账号的 SHA-256 密码摘要。"""
     return hashlib.sha256(password.encode("utf-8")).hexdigest()
 
 
 async def seed_demo_data(session: AsyncSession) -> None:
-    """向空数据库写入商家、商品、账号、优惠和知识库示例数据。"""
     if await session.scalar(select(Account.account_id).limit(1)) is not None:
+        await _ensure_runtime_defaults(session)
+        await session.commit()
         return
 
     session.add_all(
@@ -101,7 +107,7 @@ async def seed_demo_data(session: AsyncSession) -> None:
             ),
             AppConfig(config_key="retrieval.vector.enabled", config_value="false", value_type="bool", description="启用向量召回", domain="retrieval", is_secret=False),
             AppConfig(config_key="files.max_upload_bytes", config_value="10485760", value_type="int", description="文件上传最大字节数", domain="infra", is_secret=False),
-            AgentPrompt(prompt_id="prm_default_main", prompt_key="agent.prompt.main_template", title="主 Agent 模板 Prompt", content="你是受控电商导购，只基于工具结果回答。", status="active", version=1, description="阶段 4 演示 Prompt", created_by="system", published_at=datetime.utcnow()),
+            AgentPrompt(prompt_id="prm_default_main", prompt_key="agent.prompt.main_template", title="主 Agent 模板 Prompt", content="你是受控电商导购，只基于工具结果回答。", status="active", version=1, description="阶段 4 演示 Prompt", created_by="system", published_at=datetime.now(timezone.utc)),
             PromotionRule(promotion_id="promo_platform_001", name="平台满 300 减 30", scope="platform", type="full_reduction", threshold_amount=Decimal("300.00"), discount_amount=Decimal("30.00"), start_at=datetime(2026, 1, 1), end_at=datetime(2026, 12, 31, 23, 59, 59), status="active"),
             PromotionRule(promotion_id="promo_m_001_001", name="小猪数码满 1000 减 80", scope="merchant", merchant_id="m_001", type="full_reduction", threshold_amount=Decimal("1000.00"), discount_amount=Decimal("80.00"), start_at=datetime(2026, 1, 1), end_at=datetime(2026, 12, 31, 23, 59, 59), status="active"),
             Coupon(coupon_id="coupon_platform_001", name="平台新人满 200 减 20", scope="platform", type="fixed_amount", threshold_amount=Decimal("200.00"), discount_amount=Decimal("20.00"), total_count=10000, per_user_limit=1, start_at=datetime(2026, 1, 1), end_at=datetime(2026, 12, 31, 23, 59, 59), status="active"),
@@ -188,12 +194,69 @@ async def seed_demo_data(session: AsyncSession) -> None:
             ProductSKU(sku_id="sku_mouse_001", product_id="p_mouse_001", sku_name="Quiet Mouse S 标准版", price=Decimal("129.00"), stock_quantity=120, stock_status="in_stock", specs_json={"版本": "标准版"}, is_default=True),
         ]
     )
+    await _ensure_runtime_defaults(session)
     await session.commit()
 
 
+async def _ensure_runtime_defaults(session: AsyncSession) -> None:
+    """Fill the configuration/prompt catalog when opening a Go-created database."""
+    defaults = [
+        ("ai.enabled", "false", "bool", "是否启用真实模型调用", "app", False),
+        ("ai.active_provider", "qwen", "string", "当前生效模型供应商", "app", False),
+        ("ai.qwen.base_url", "https://dashscope.aliyuncs.com/compatible-mode/v1", "string", "千问 OpenAI 兼容模型服务 Base URL", "app", False),
+        ("ai.qwen.small_model", "qwen3.5-flash", "string", "千问低成本小模型", "app", False),
+        ("ai.qwen.large_model", "qwen3.7-plus", "string", "千问复杂导购决策模型", "app", False),
+        ("http.cors.allowed_origins", "*", "string", "允许跨域访问的 Origin", "infra", False),
+        ("files.max_upload_bytes", "10485760", "int", "文件上传最大字节数", "infra", False),
+        ("tts.provider", "xunfei", "string", "TTS 供应商：xunfei 或 doubao", "infra", False),
+        ("xunfei.tts.enabled", "false", "bool", "是否启用讯飞在线语音合成", "infra", False),
+        ("xunfei.tts.max_runes", "800", "int", "TTS 单次合成最大字符数", "infra", False),
+        ("doubao.tts.enabled", "false", "bool", "是否启用豆包语音合成", "infra", False),
+        ("vector.enabled", "false", "bool", "是否启用向量召回", "infra", False),
+        ("milvus.address", "http://127.0.0.1:19530", "string", "Milvus REST 地址", "infra", False),
+        ("image_embedding.provider", "dashscope", "string", "图片 Embedding 提供方", "infra", False),
+        ("image_embedding.dimension", "1536", "int", "图片 Embedding 维度", "infra", False),
+        ("retrieval.product.rerank.enabled", "true", "bool", "是否启用商品候选重排", "rag", False),
+        ("retrieval.product.rerank.model_enabled", "true", "bool", "是否调用商品重排模型", "rag", False),
+        ("retrieval.product.rerank.fallback_rule_enabled", "true", "bool", "重排模型失败时回退规则", "rag", False),
+        ("retrieval.product.rerank.max_candidates", "80", "int", "商品重排候选数", "rag", False),
+        ("retrieval.product.rerank.model_min_score", "0.50", "float", "商品重排最低分", "rag", False),
+        ("retrieval.product.rerank.model_max_score_delta", "0.12", "float", "商品重排最高分差", "rag", False),
+        ("retrieval.product.ok.max_results", "10", "int", "商品检索相关结果最多数量", "rag", False),
+        ("agent.followups_enabled", "true", "bool", "是否生成追问", "app", False),
+        ("risk.enabled", "true", "bool", "是否启用输入和账号风控", "app", False),
+        ("memory.enabled", "true", "bool", "是否启用短期多轮记忆", "app", False),
+    ]
+    for key, value, value_type, description, domain, is_secret in defaults:
+        if await session.get(AppConfig, key) is None:
+            session.add(AppConfig(config_key=key, config_value=value, value_type=value_type, description=description, domain=domain, is_secret=is_secret, updated_at=datetime.now(timezone.utc)))
+    prompt_defaults = [
+        ("agent.prompt.route", "一级路由 Prompt", "guide/non_guide 路由"),
+        ("agent.prompt.guide_intent", "导购细分 Prompt", "P1-P6 导购意图识别"),
+        ("agent.prompt.non_guide_intent", "非导购细分 Prompt", "非导购服务域识别"),
+        ("agent.prompt.main_template", "主 Agent 模板 Prompt", "受控电商导购回答"),
+        ("agent.prompt.tool_call_protocol", "工具调用协议 Prompt", "ReAct 工具协议"),
+        ("agent.prompt.final_output_rules", "最终回答规范 Prompt", "最终回答规范"),
+        ("agent.prompt.followups", "追问生成 Prompt", "导购追问生成"),
+        ("agent.prompt.guide_suggestions", "小猪浮窗建议 Prompt", "页面导购建议"),
+        ("agent.prompt.memory_retrieval", "短期记忆检索 Prompt", "短期记忆检索"),
+        ("agent.prompt.session_summary", "会话摘要 Prompt", "会话滚动摘要"),
+    ]
+    for key, title, description in prompt_defaults:
+        exists = await session.scalar(select(AgentPrompt.prompt_id).where(AgentPrompt.prompt_key == key).limit(1))
+        if exists is None:
+            now = datetime.now(timezone.utc)
+            session.add(AgentPrompt(prompt_id=f"prm_default_{hashlib.sha1(key.encode()).hexdigest()[:12]}", prompt_key=key, title=title, content="你是受控电商导购，只基于真实工具结果回答。", status="active", version=1, description=description, created_by="system", published_at=now, created_at=now, updated_at=now))
+
+
 def _ensure_phase3_compat_columns(connection) -> None:
-    """为复用旧版 SQLite 数据库的开发环境补充新增字段。"""
+    """Add Stage 3 columns when a developer reuses a Stage 2 SQLite database."""
     inspector = inspect(connection)
+    tables = set(inspector.get_table_names())
+    if "agent_prompt_publish_records" in tables:
+        prompt_columns = {column["name"] for column in inspector.get_columns("agent_prompt_publish_records")}
+        if "nacos_data_id" not in prompt_columns:
+            connection.execute(text("ALTER TABLE agent_prompt_publish_records ADD COLUMN nacos_data_id VARCHAR(128) NOT NULL DEFAULT ''"))
     if "knowledge_chunks" not in inspector.get_table_names():
         return
     existing = {column["name"] for column in inspector.get_columns("knowledge_chunks")}

@@ -9,7 +9,6 @@ from typing import Any
 class APIError(Exception):
     """An expected API error with the same shape as the Go service."""
 
-    #init：完成本模块的一步处理，并把结果返回给调用方。
     def __init__(self, status_code: int, code: str, message: str, *, headers: dict[str, str] | None = None) -> None:
         super().__init__(message)
         self.status_code = status_code
@@ -17,6 +16,5 @@ class APIError(Exception):
         self.message = message
         self.headers = headers or {}
 
-    #payload：完成本模块的一步处理，并把结果返回给调用方。
     def payload(self, request_id: str = "") -> dict[str, Any]:
         return {"code": self.code, "message": self.message, "request_id": request_id}

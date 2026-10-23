@@ -1,8 +1,6 @@
-"""API 输入输出契约：负责边界校验、序列化和金额格式统一。"""
-
 from __future__ import annotations
 
-# 接口数据模型：定义请求、响应和分页数据的校验规则。
+# 领域模型模块：定义业务实体、状态和接口数据结构。
 
 from datetime import datetime
 from decimal import Decimal
@@ -11,31 +9,32 @@ from typing import Any, Generic, TypeVar
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
+# 模块中的核心类型，封装相关状态和行为。
 class APIModel(BaseModel):
-    """所有接口模型的公共基类，统一 Pydantic 配置和序列化行为。"""
     model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 
+# 接口数据模型，负责约束边界输入或输出格式。
 class LoginRequest(APIModel):
-    """LoginRequest 的请求或响应数据模型，负责边界校验与 JSON 序列化。"""
     username: str
     password: str
 
 
+# 接口数据模型，负责约束边界输入或输出格式。
 class RegisterRequest(APIModel):
-    """RegisterRequest 的请求或响应数据模型，负责边界校验与 JSON 序列化。"""
     username: str
     password: str
     display_name: str = ""
 
+    # 规范化 normalize_strings 
     @field_validator("username", "password", "display_name", mode="before")
     @classmethod
     def normalize_strings(cls, value: object) -> str:
         return str(value or "").strip()
 
 
+# 接口数据模型，负责约束边界输入或输出格式。
 class AccountOut(APIModel):
-    """AccountOut 的请求或响应数据模型，负责边界校验与 JSON 序列化。"""
     account_id: str
     username: str
     display_name: str
@@ -48,22 +47,35 @@ class AccountOut(APIModel):
     created_at: datetime
 
 
+# 接口数据模型，负责约束边界输入或输出格式。
+class AccountProfileUpdateRequest(APIModel):
+    display_name: str | None = None
+    nickname: str | None = None
+    avatar_url: str | None = None
+
+
+# 接口数据模型，负责约束边界输入或输出格式。
+class ContactUpdateRequest(APIModel):
+    phone: str | None = None
+    email: str | None = None
+
+
+# 接口数据模型，负责约束边界输入或输出格式。
 class AuthResponse(APIModel):
-    """AuthResponse 的请求或响应数据模型，负责边界校验与 JSON 序列化。"""
     token: str
     account: AccountOut
 
 
+# 接口数据模型，负责约束边界输入或输出格式。
 class CategoryOut(APIModel):
-    """CategoryOut 的请求或响应数据模型，负责边界校验与 JSON 序列化。"""
     category_id: str = Field(alias="categoryId")
     parent_id: str = Field(alias="parentId")
     name: str
     children: list["CategoryOut"] | None = None
 
 
+# 接口数据模型，负责约束边界输入或输出格式。
 class MerchantOut(APIModel):
-    """MerchantOut 的请求或响应数据模型，负责边界校验与 JSON 序列化。"""
     merchant_id: str = Field(alias="merchantId")
     name: str
     logo_url: str = Field(alias="logoUrl")
@@ -72,8 +84,8 @@ class MerchantOut(APIModel):
     status: str
 
 
+# 接口数据模型，负责约束边界输入或输出格式。
 class ProductCardOut(APIModel):
-    """ProductCardOut 的请求或响应数据模型，负责边界校验与 JSON 序列化。"""
     product_id: str = Field(alias="productId")
     sku_id: str | None = Field(default=None, alias="skuId")
     merchant_id: str = Field(alias="merchantId")
@@ -92,15 +104,15 @@ class ProductCardOut(APIModel):
     risk_notes: list[str] = Field(default_factory=list, alias="riskNotes")
 
 
+# 接口数据模型，负责约束边界输入或输出格式。
 class ProductAttributeOut(APIModel):
-    """ProductAttributeOut 的请求或响应数据模型，负责边界校验与 JSON 序列化。"""
     key: str
     value: str
     unit: str | None = None
 
 
+# 接口数据模型，负责约束边界输入或输出格式。
 class ProductDetailOut(ProductCardOut):
-    """ProductDetailOut 的请求或响应数据模型，负责边界校验与 JSON 序列化。"""
     image_urls: list[str] = Field(default_factory=list, alias="imageUrls")
     stock_quantity: int = Field(alias="stockQuantity")
     attributes: list[ProductAttributeOut] = Field(default_factory=list)
@@ -109,8 +121,8 @@ class ProductDetailOut(ProductCardOut):
     description: str = ""
 
 
+# 接口数据模型，负责约束边界输入或输出格式。
 class ProductSKUOut(APIModel):
-    """ProductSKUOut 的请求或响应数据模型，负责边界校验与 JSON 序列化。"""
     sku_id: str = Field(alias="skuId")
     product_id: str = Field(alias="productId")
     sku_name: str = Field(alias="skuName")
@@ -123,16 +135,16 @@ class ProductSKUOut(APIModel):
 T = TypeVar("T")
 
 
+# 接口数据模型，负责约束边界输入或输出格式。
 class PageResponse(BaseModel, Generic[T]):
-    """分页响应包装器，统一返回数据列表、总数和分页参数。"""
     items: list[T]
     page: int
     page_size: int
     total: int
 
 
+# 模块中的核心类型，封装相关状态和行为。
 class AttachmentIn(APIModel):
-    """AttachmentIn 的请求或响应数据模型，负责边界校验与 JSON 序列化。"""
     attachment_id: str = ""
     file_id: str | None = None
     type: str = ""
@@ -141,24 +153,24 @@ class AttachmentIn(APIModel):
     object_key: str | None = None
 
 
+# 接口数据模型，负责约束边界输入或输出格式。
 class SessionCreateRequest(APIModel):
-    """SessionCreateRequest 的请求或响应数据模型，负责边界校验与 JSON 序列化。"""
     title: str = "AI 导购"
 
 
+# 接口数据模型，负责约束边界输入或输出格式。
 class SessionPatchRequest(APIModel):
-    """SessionPatchRequest 的请求或响应数据模型，负责边界校验与 JSON 序列化。"""
     title: str = ""
     summary: str = ""
 
 
+# 接口数据模型，负责约束边界输入或输出格式。
 class SessionPinRequest(APIModel):
-    """SessionPinRequest 的请求或响应数据模型，负责边界校验与 JSON 序列化。"""
     pinned: bool
 
 
+# 接口数据模型，负责约束边界输入或输出格式。
 class ChatSessionOut(APIModel):
-    """ChatSessionOut 的请求或响应数据模型，负责边界校验与 JSON 序列化。"""
     session_id: str
     account_id: str | None = None
     title: str
@@ -171,8 +183,8 @@ class ChatSessionOut(APIModel):
     updated_at: datetime
 
 
+# 接口数据模型，负责约束边界输入或输出格式。
 class UserMessageOut(APIModel):
-    """UserMessageOut 的请求或响应数据模型，负责边界校验与 JSON 序列化。"""
     message_id: str
     session_id: str
     account_id: str | None = None
@@ -182,8 +194,8 @@ class UserMessageOut(APIModel):
     created_at: datetime
 
 
+# 接口数据模型，负责约束边界输入或输出格式。
 class AgentRunOut(APIModel):
-    """AgentRunOut 的请求或响应数据模型，负责边界校验与 JSON 序列化。"""
     run_id: str
     session_id: str
     message_id: str
@@ -199,19 +211,19 @@ class AgentRunOut(APIModel):
     segments: list[dict[str, Any]] = Field(default_factory=list)
 
 
+# 接口数据模型，负责约束边界输入或输出格式。
 class UserMessageWithRunsOut(UserMessageOut):
-    """UserMessageWithRunsOut 的请求或响应数据模型，负责边界校验与 JSON 序列化。"""
     runs: list[AgentRunOut] = Field(default_factory=list)
 
 
+# 接口数据模型，负责约束边界输入或输出格式。
 class ChatSessionDetailOut(APIModel):
-    """ChatSessionDetailOut 的请求或响应数据模型，负责边界校验与 JSON 序列化。"""
     session: ChatSessionOut
     messages: list[UserMessageWithRunsOut] = Field(default_factory=list)
 
 
+# 接口数据模型，负责约束边界输入或输出格式。
 class AgentTraceOut(APIModel):
-    """AgentTraceOut 的请求或响应数据模型，负责边界校验与 JSON 序列化。"""
     trace_event_id: str
     run_id: str
     trace_id: str
@@ -226,23 +238,37 @@ class AgentTraceOut(APIModel):
     created_at: datetime
 
 
+# 接口数据模型，负责约束边界输入或输出格式。
 class AgentMessageRequest(APIModel):
-    """AgentMessageRequest 的请求或响应数据模型，负责边界校验与 JSON 序列化。"""
     client_message_id: str = ""
     content: str
     attachments: list[AttachmentIn] = Field(default_factory=list)
 
 
+# 接口数据模型，负责约束边界输入或输出格式。
+class GuideSuggestionRequest(APIModel):
+    page: str
+    context: dict[str, Any] = Field(default_factory=dict)
+    limit: int = 0
+
+
+# 模块中的核心类型，封装相关状态和行为。
+class GuideSuggestionItem(APIModel):
+    id: str
+    question: str
+    reason: str
+
+
+# 接口数据模型，负责约束边界输入或输出格式。
 class ImageSearchRequest(APIModel):
-    """ImageSearchRequest 的请求或响应数据模型，负责边界校验与 JSON 序列化。"""
     file_id: str = ""
     object_key: str = ""
     image_url: str = ""
     top_k: int = Field(default=5, ge=1, le=20)
 
 
+# 接口数据模型，负责约束边界输入或输出格式。
 class KnowledgeDocumentCreateRequest(APIModel):
-    """KnowledgeDocumentCreateRequest 的请求或响应数据模型，负责边界校验与 JSON 序列化。"""
     title: str
     doc_type: str = ""
     content: str
@@ -251,8 +277,8 @@ class KnowledgeDocumentCreateRequest(APIModel):
     force_reindex: bool = False
 
 
+# 接口数据模型，负责约束边界输入或输出格式。
 class KnowledgeDocumentOut(APIModel):
-    """KnowledgeDocumentOut 的请求或响应数据模型，负责边界校验与 JSON 序列化。"""
     document_id: str
     merchant_id: str
     title: str
@@ -264,8 +290,28 @@ class KnowledgeDocumentOut(APIModel):
     created_at: datetime
 
 
+# 接口数据模型，负责约束边界输入或输出格式。
+class UnstructuredIngestRequest(APIModel):
+    title: str = ""
+    source_type: str = "text"
+    source_url: str = ""
+    content: str = ""
+    html: str = ""
+    json_text: str = ""
+    metadata: dict[str, Any] = Field(default_factory=dict)
+    force_reindex: bool = False
+    merchant_id: str = ""
+
+
+# 模块中的核心类型，封装相关状态和行为。
+class UnstructuredIngestResult(APIModel):
+    document: KnowledgeDocumentOut
+    duplicate: bool
+    text_runes: int
+
+
+# 接口数据模型，负责约束边界输入或输出格式。
 class StoredFileOut(APIModel):
-    """StoredFileOut 的请求或响应数据模型，负责边界校验与 JSON 序列化。"""
     file_id: str
     account_id: str
     object_key: str
@@ -278,8 +324,8 @@ class StoredFileOut(APIModel):
     created_at: datetime
 
 
+# 接口数据模型，负责约束边界输入或输出格式。
 class CartItemOut(APIModel):
-    """CartItemOut 的请求或响应数据模型，负责边界校验与 JSON 序列化。"""
     cart_item_id: str = Field(alias="cartItemId")
     product_id: str = Field(alias="productId")
     sku_id: str | None = Field(default=None, alias="skuId")
@@ -293,45 +339,45 @@ class CartItemOut(APIModel):
     merchant_name: str = Field(alias="merchantName")
 
 
+# 接口数据模型，负责约束边界输入或输出格式。
 class CartSummaryOut(APIModel):
-    """CartSummaryOut 的请求或响应数据模型，负责边界校验与 JSON 序列化。"""
     selected_count: int = Field(alias="selectedCount")
     total_amount: str = Field(alias="totalAmount")
     discount_amount: str = Field(alias="discountAmount")
     pay_amount: str = Field(alias="payAmount")
 
 
+# 接口数据模型，负责约束边界输入或输出格式。
 class CartOut(APIModel):
-    """CartOut 的请求或响应数据模型，负责边界校验与 JSON 序列化。"""
     items: list[CartItemOut] = Field(default_factory=list)
     summary: CartSummaryOut
 
 
+# 接口数据模型，负责约束边界输入或输出格式。
 class CartAddRequest(APIModel):
-    """CartAddRequest 的请求或响应数据模型，负责边界校验与 JSON 序列化。"""
-    product_id: str
-    sku_id: str = ""
+    product_id: str = Field(alias="productId")
+    sku_id: str = Field(default="", alias="skuId")
     quantity: int = Field(default=1, ge=1)
 
 
+# 接口数据模型，负责约束边界输入或输出格式。
 class CartPatchRequest(APIModel):
-    """CartPatchRequest 的请求或响应数据模型，负责边界校验与 JSON 序列化。"""
     quantity: int | None = Field(default=None, ge=1)
     selected: bool | None = None
 
 
+# 接口数据模型，负责约束边界输入或输出格式。
 class PaymentRequest(APIModel):
-    """PaymentRequest 的请求或响应数据模型，负责边界校验与 JSON 序列化。"""
     method: str = "mock_balance"
 
 
+# 接口数据模型，负责约束边界输入或输出格式。
 class CancelOrderRequest(APIModel):
-    """CancelOrderRequest 的请求或响应数据模型，负责边界校验与 JSON 序列化。"""
     reason: str = ""
 
 
+# 接口数据模型，负责约束边界输入或输出格式。
 class OrderItemOut(APIModel):
-    """OrderItemOut 的请求或响应数据模型，负责边界校验与 JSON 序列化。"""
     order_item_id: str
     product_id: str
     sku_id: str | None = None
@@ -343,8 +389,8 @@ class OrderItemOut(APIModel):
     merchant_name: str
 
 
+# 接口数据模型，负责约束边界输入或输出格式。
 class OrderOut(APIModel):
-    """OrderOut 的请求或响应数据模型，负责边界校验与 JSON 序列化。"""
     order_id: str
     order_no: str
     account_id: str
@@ -364,8 +410,8 @@ class OrderOut(APIModel):
     updated_at: datetime
 
 
+# 接口数据模型，负责约束边界输入或输出格式。
 class DiscountLineOut(APIModel):
-    """DiscountLineOut 的请求或响应数据模型，负责边界校验与 JSON 序列化。"""
     type: str
     id: str
     name: str
@@ -373,16 +419,16 @@ class DiscountLineOut(APIModel):
     description: str | None = None
 
 
+# 接口数据模型，负责约束边界输入或输出格式。
 class DiscountPreviewOut(APIModel):
-    """DiscountPreviewOut 的请求或响应数据模型，负责边界校验与 JSON 序列化。"""
     total_amount: str
     discount_amount: str
     pay_amount: str
     lines: list[DiscountLineOut] = Field(default_factory=list)
 
 
+# 接口数据模型，负责约束边界输入或输出格式。
 class PaymentOut(APIModel):
-    """PaymentOut 的请求或响应数据模型，负责边界校验与 JSON 序列化。"""
     payment_id: str
     order_id: str
     account_id: str
@@ -396,8 +442,8 @@ class PaymentOut(APIModel):
     updated_at: datetime
 
 
+# 接口数据模型，负责约束边界输入或输出格式。
 class CouponOut(APIModel):
-    """CouponOut 的请求或响应数据模型，负责边界校验与 JSON 序列化。"""
     coupon_id: str
     name: str
     scope: str
@@ -415,8 +461,8 @@ class CouponOut(APIModel):
     updated_at: datetime
 
 
+# 接口数据模型，负责约束边界输入或输出格式。
 class UserCouponOut(APIModel):
-    """UserCouponOut 的请求或响应数据模型，负责边界校验与 JSON 序列化。"""
     user_coupon_id: str
     coupon_id: str
     account_id: str
@@ -427,8 +473,8 @@ class UserCouponOut(APIModel):
     coupon: CouponOut
 
 
+# 接口数据模型，负责约束边界输入或输出格式。
 class PromotionRuleRequest(APIModel):
-    """PromotionRuleRequest 的请求或响应数据模型，负责边界校验与 JSON 序列化。"""
     name: str
     scope: str = "platform"
     merchant_id: str = ""
@@ -444,8 +490,8 @@ class PromotionRuleRequest(APIModel):
     status: str = "active"
 
 
+# 接口数据模型，负责约束边界输入或输出格式。
 class PromotionRuleOut(APIModel):
-    """PromotionRuleOut 的请求或响应数据模型，负责边界校验与 JSON 序列化。"""
     promotion_id: str
     name: str
     scope: str
@@ -464,8 +510,8 @@ class PromotionRuleOut(APIModel):
     updated_at: datetime
 
 
+# 接口数据模型，负责约束边界输入或输出格式。
 class ProductUpsertRequest(APIModel):
-    """ProductUpsertRequest 的请求或响应数据模型，负责边界校验与 JSON 序列化。"""
     name: str
     brand: str = ""
     category_id: str = ""
@@ -483,25 +529,25 @@ class ProductUpsertRequest(APIModel):
 
 
 
+# 接口数据模型，负责约束边界输入或输出格式。
 class ReviewRequest(APIModel):
-    """ReviewRequest 的请求或响应数据模型，负责边界校验与 JSON 序列化。"""
     rating: int = Field(ge=1, le=5)
     content: str
     tags: list[str] = Field(default_factory=list)
 
 
+# 接口数据模型，负责约束边界输入或输出格式。
 class ReviewReplyRequest(APIModel):
-    """ReviewReplyRequest 的请求或响应数据模型，负责边界校验与 JSON 序列化。"""
     reply: str
 
 
+# 接口数据模型，负责约束边界输入或输出格式。
 class ReviewStatusRequest(APIModel):
-    """ReviewStatusRequest 的请求或响应数据模型，负责边界校验与 JSON 序列化。"""
     status: str
 
 
+# 接口数据模型，负责约束边界输入或输出格式。
 class ProductReviewOut(APIModel):
-    """ProductReviewOut 的请求或响应数据模型，负责边界校验与 JSON 序列化。"""
     review_id: str
     order_id: str
     order_item_id: str
@@ -519,21 +565,21 @@ class ProductReviewOut(APIModel):
     updated_at: datetime
 
 
+# 接口数据模型，负责约束边界输入或输出格式。
 class StatusRequest(APIModel):
-    """StatusRequest 的请求或响应数据模型，负责边界校验与 JSON 序列化。"""
     status: str
 
 
+# 接口数据模型，负责约束边界输入或输出格式。
 class ConfigUpdateRequest(APIModel):
-    """ConfigUpdateRequest 的请求或响应数据模型，负责边界校验与 JSON 序列化。"""
     value: str
     value_type: str = "string"
     description: str = ""
     is_secret: bool | None = None
 
 
+# 接口数据模型，负责约束边界输入或输出格式。
 class ConfigOut(APIModel):
-    """ConfigOut 的请求或响应数据模型，负责边界校验与 JSON 序列化。"""
     config_key: str
     config_value: str
     value_type: str
@@ -543,15 +589,15 @@ class ConfigOut(APIModel):
     updated_at: datetime
 
 
+# 接口数据模型，负责约束边界输入或输出格式。
 class PromptDraftRequest(APIModel):
-    """PromptDraftRequest 的请求或响应数据模型，负责边界校验与 JSON 序列化。"""
     title: str = ""
     content: str
     description: str = ""
 
 
+# 接口数据模型，负责约束边界输入或输出格式。
 class PromptOut(APIModel):
-    """PromptOut 的请求或响应数据模型，负责边界校验与 JSON 序列化。"""
     prompt_id: str
     prompt_key: str
     title: str
@@ -565,8 +611,8 @@ class PromptOut(APIModel):
     updated_at: datetime
 
 
+# 接口数据模型，负责约束边界输入或输出格式。
 class PromptPublishRecordOut(APIModel):
-    """PromptPublishRecordOut 的请求或响应数据模型，负责边界校验与 JSON 序列化。"""
     record_id: str
     prompt_key: str
     prompt_id: str
@@ -577,7 +623,6 @@ class PromptPublishRecordOut(APIModel):
 
 
 def amount_string(value: Decimal | int | float | str | None) -> str:
-    """将金额安全转换为两位小数字符串，避免浮点值直接暴露给前端。"""
     if value is None:
         return "0.00"
     return f"{Decimal(str(value)):.2f}"

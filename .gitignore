@@ -8,6 +8,4 @@ backend_py_uploads/
 quality/reports/
 .idea/
 .vscode/
-frontend/node_modules/
-frontend/dist/
 

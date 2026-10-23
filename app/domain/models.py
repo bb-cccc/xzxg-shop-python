@@ -1,23 +1,25 @@
-"""领域 ORM 模型：描述业务实体、字段类型、默认值和数据库索引。"""
-
 from __future__ import annotations
 
-# 领域 ORM 模型：把业务对象映射为数据库表和关系。
+# 领域模型模块：定义业务实体、状态和接口数据结构。
 
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 
 from sqlalchemy import Boolean, DateTime, Integer, JSON, Numeric, String, Text, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
+def utcnow() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+# 模块中的核心类型，封装相关状态和行为。
 class Base(DeclarativeBase):
-    """所有 ORM 实体共享的声明式基类，提供统一的元数据集合。"""
     pass
 
 
+# 模块中的核心类型，封装相关状态和行为。
 class Account(Base):
-    """平台账号，保存登录信息、角色、商家归属和软删除状态。"""
     __tablename__ = "accounts"
 
     account_id: Mapped[str] = mapped_column(String(64), primary_key=True)
@@ -31,21 +33,22 @@ class Account(Base):
     merchant_id: Mapped[str] = mapped_column(String(64), default="")
     status: Mapped[str] = mapped_column(String(32), default="active", index=True)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
 
+# 模块中的核心类型，封装相关状态和行为。
 class AuthToken(Base):
     __tablename__ = "auth_tokens"
 
     token: Mapped[str] = mapped_column(String(96), primary_key=True)
     account_id: Mapped[str] = mapped_column(String(64), index=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
 
 
+# 模块中的核心类型，封装相关状态和行为。
 class Merchant(Base):
-    """商家主体及其展示资料、服务电话和运营状态。"""
     __tablename__ = "merchants"
 
     merchant_id: Mapped[str] = mapped_column(String(64), primary_key=True)
@@ -54,10 +57,11 @@ class Merchant(Base):
     description: Mapped[str] = mapped_column(Text, default="")
     service_phone: Mapped[str] = mapped_column(String(64), default="")
     status: Mapped[str] = mapped_column(String(32), default="active", index=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
 
+# 模块中的核心类型，封装相关状态和行为。
 class Category(Base):
     __tablename__ = "categories"
 
@@ -65,12 +69,12 @@ class Category(Base):
     parent_id: Mapped[str] = mapped_column(String(64), default="", index=True)
     name: Mapped[str] = mapped_column(String(128))
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
 
+# 模块中的核心类型，封装相关状态和行为。
 class Product(Base):
-    """商品主档，包含价格、库存、展示文案和推荐属性。"""
     __tablename__ = "products"
 
     product_id: Mapped[str] = mapped_column(String(64), primary_key=True)
@@ -94,12 +98,12 @@ class Product(Base):
     description: Mapped[str] = mapped_column(Text, default="")
     status: Mapped[str] = mapped_column(String(32), default="active", index=True)
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
 
+# 模块中的核心类型，封装相关状态和行为。
 class ProductSKU(Base):
-    """商品可售规格，维护规格描述、独立价格和库存。"""
     __tablename__ = "product_skus"
 
     sku_id: Mapped[str] = mapped_column(String(64), primary_key=True)
@@ -110,12 +114,12 @@ class ProductSKU(Base):
     stock_status: Mapped[str] = mapped_column(String(32), default="out_of_stock")
     specs_json: Mapped[dict[str, str]] = mapped_column(JSON, default=dict)
     is_default: Mapped[bool] = mapped_column(Boolean, default=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
 
+# 模块中的核心类型，封装相关状态和行为。
 class KnowledgeChunk(Base):
-    """知识库可检索文本片段，关联来源文档及业务范围。"""
     __tablename__ = "knowledge_chunks"
 
     chunk_id: Mapped[str] = mapped_column(String(64), primary_key=True)
@@ -131,12 +135,12 @@ class KnowledgeChunk(Base):
     quality_score: Mapped[Decimal] = mapped_column(Numeric(5, 4), default=Decimal("0.0"))
     metadata_json: Mapped[dict[str, object]] = mapped_column(JSON, default=dict)
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
 
+# 模块中的核心类型，封装相关状态和行为。
 class KnowledgeDocument(Base):
-    """知识库原始文档，记录解析状态、分块数量和内容指纹。"""
     __tablename__ = "knowledge_documents"
 
     document_id: Mapped[str] = mapped_column(String(64), primary_key=True)
@@ -149,10 +153,11 @@ class KnowledgeDocument(Base):
     source_url: Mapped[str] = mapped_column(String(1024), default="")
     content_hash: Mapped[str] = mapped_column(String(128), default="", index=True)
     metadata_json: Mapped[dict[str, object]] = mapped_column(JSON, default=dict)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
 
+# 模块中的核心类型，封装相关状态和行为。
 class StoredFile(Base):
     __tablename__ = "stored_files"
     __table_args__ = (UniqueConstraint("object_key", name="uk_stored_files_object_key"),)
@@ -166,9 +171,10 @@ class StoredFile(Base):
     content_hash: Mapped[str] = mapped_column(String(128), default="", index=True)
     storage_provider: Mapped[str] = mapped_column(String(32), default="local")
     source_url: Mapped[str] = mapped_column(String(1024), default="")
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
+# 模块中的核心类型，封装相关状态和行为。
 class ProductImageVector(Base):
     __tablename__ = "product_image_vectors"
     __table_args__ = (UniqueConstraint("product_id", "image_url", name="uk_product_image_vector_source"),)
@@ -178,17 +184,17 @@ class ProductImageVector(Base):
     # Keep the product/image composite unique key below MySQL's 3072-byte
     # utf8mb4 index limit: (64 + 512) * 4 = 2304 bytes.
     image_url: Mapped[str] = mapped_column(String(512), default="")
-    provider: Mapped[str] = mapped_column(String(64), default="local_histogram", index=True)
-    dimension: Mapped[int] = mapped_column(Integer, default=64)
+    provider: Mapped[str] = mapped_column(String(64), default="dashscope", index=True)
+    dimension: Mapped[int] = mapped_column(Integer, default=1536)
     embedding_json: Mapped[list[float]] = mapped_column(JSON, default=list)
     content_hash: Mapped[str] = mapped_column(String(128), default="", index=True)
     metadata_json: Mapped[dict[str, object]] = mapped_column(JSON, default=dict)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
 
+# 模块中的核心类型，封装相关状态和行为。
 class ChatSession(Base):
-    """用户与导购 Agent 的会话容器。"""
     __tablename__ = "chat_sessions"
 
     session_id: Mapped[str] = mapped_column(String(64), primary_key=True)
@@ -199,10 +205,11 @@ class ChatSession(Base):
     last_message_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     pinned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
 
+# 模块中的核心类型，封装相关状态和行为。
 class UserMessage(Base):
     __tablename__ = "user_messages"
     __table_args__ = (UniqueConstraint("account_id", "session_id", "client_message_id", name="uk_user_messages_client_message"),)
@@ -213,9 +220,10 @@ class UserMessage(Base):
     client_message_id: Mapped[str] = mapped_column(String(128), default="", index=True)
     content: Mapped[str] = mapped_column(Text)
     attachments_json: Mapped[list[dict[str, object]]] = mapped_column(JSON, default=list)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
+# 模块中的核心类型，封装相关状态和行为。
 class AgentRun(Base):
     __tablename__ = "agent_runs"
     __table_args__ = (UniqueConstraint("account_id", "message_id", name="uk_agent_runs_message"),)
@@ -230,10 +238,11 @@ class AgentRun(Base):
     blocks_json: Mapped[list[dict[str, object]]] = mapped_column(JSON, default=list)
     followups_json: Mapped[list[str]] = mapped_column(JSON, default=list)
     segments_json: Mapped[list[dict[str, object]]] = mapped_column(JSON, default=list)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
 
+# 模块中的核心类型，封装相关状态和行为。
 class AgentTraceEvent(Base):
     __tablename__ = "agent_trace_events"
 
@@ -248,9 +257,10 @@ class AgentTraceEvent(Base):
     duration_ms: Mapped[int] = mapped_column(Integer, default=0)
     error: Mapped[str] = mapped_column(Text, default="")
     metadata_json: Mapped[dict[str, object]] = mapped_column(JSON, default=dict)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
+# 模块中的核心类型，封装相关状态和行为。
 class CartItem(Base):
     __tablename__ = "cart_items"
     __table_args__ = (UniqueConstraint("account_id", "product_id", "sku_id", name="uk_cart_account_product_sku"),)
@@ -261,12 +271,12 @@ class CartItem(Base):
     sku_id: Mapped[str] = mapped_column(String(64), default="")
     quantity: Mapped[int] = mapped_column(Integer, default=1)
     selected: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
 
+# 模块中的核心类型，封装相关状态和行为。
 class Order(Base):
-    """结算形成的订单及其支付、配送和生命周期状态。"""
     __tablename__ = "orders"
 
     order_id: Mapped[str] = mapped_column(String(64), primary_key=True)
@@ -282,10 +292,11 @@ class Order(Base):
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     cancel_reason: Mapped[str] = mapped_column(String(256), default="")
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
 
+# 模块中的核心类型，封装相关状态和行为。
 class OrderItem(Base):
     __tablename__ = "order_items"
 
@@ -299,9 +310,10 @@ class OrderItem(Base):
     quantity: Mapped[int] = mapped_column(Integer, default=1)
     merchant_id: Mapped[str] = mapped_column(String(64), default="")
     merchant_name: Mapped[str] = mapped_column(String(128), default="")
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
+# 模块中的核心类型，封装相关状态和行为。
 class Payment(Base):
     __tablename__ = "payments"
 
@@ -314,10 +326,11 @@ class Payment(Base):
     transaction_no: Mapped[str] = mapped_column(String(96), default="")
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
 
+# 模块中的核心类型，封装相关状态和行为。
 class PromotionRule(Base):
     __tablename__ = "promotion_rules"
 
@@ -335,12 +348,12 @@ class PromotionRule(Base):
     start_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     end_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     status: Mapped[str] = mapped_column(String(32), default="active", index=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
 
+# 模块中的核心类型，封装相关状态和行为。
 class Coupon(Base):
-    """可领取优惠券模板，定义门槛、面额、库存和有效期。"""
     __tablename__ = "coupons"
 
     coupon_id: Mapped[str] = mapped_column(String(64), primary_key=True)
@@ -356,10 +369,11 @@ class Coupon(Base):
     start_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     end_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     status: Mapped[str] = mapped_column(String(32), default="active", index=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
 
+# 模块中的核心类型，封装相关状态和行为。
 class UserCoupon(Base):
     __tablename__ = "user_coupons"
 
@@ -368,12 +382,12 @@ class UserCoupon(Base):
     account_id: Mapped[str] = mapped_column(String(64), index=True)
     status: Mapped[str] = mapped_column(String(32), default="unused", index=True)
     order_id: Mapped[str] = mapped_column(String(64), default="")
-    claimed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+    claimed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
+# 模块中的核心类型，封装相关状态和行为。
 class ProductReview(Base):
-    """用户商品评价及商家回复、审核状态。"""
     __tablename__ = "product_reviews"
     __table_args__ = (UniqueConstraint("order_item_id", name="uk_product_reviews_order_item"),)
 
@@ -389,10 +403,11 @@ class ProductReview(Base):
     status: Mapped[str] = mapped_column(String(32), default="visible", index=True)
     merchant_reply: Mapped[str] = mapped_column(Text, default="")
     merchant_replied_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
 
+# 模块中的核心类型，封装相关状态和行为。
 class AppConfig(Base):
     __tablename__ = "app_configs"
 
@@ -402,11 +417,11 @@ class AppConfig(Base):
     description: Mapped[str] = mapped_column(Text, default="")
     domain: Mapped[str] = mapped_column(String(64), default="")
     is_secret: Mapped[bool] = mapped_column(Boolean, default=False)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
 
+# 模块中的核心类型，封装相关状态和行为。
 class AgentPrompt(Base):
-    """版本化 Agent 提示词，支持草稿、发布和归档状态。"""
     __tablename__ = "agent_prompts"
     __table_args__ = (UniqueConstraint("prompt_key", "version", name="uk_agent_prompts_key_version"),)
 
@@ -419,10 +434,11 @@ class AgentPrompt(Base):
     description: Mapped[str] = mapped_column(Text, default="")
     created_by: Mapped[str] = mapped_column(String(64), default="")
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
 
+# 模块中的核心类型，封装相关状态和行为。
 class AgentPromptPublishRecord(Base):
     __tablename__ = "agent_prompt_publish_records"
 
@@ -432,4 +448,7 @@ class AgentPromptPublishRecord(Base):
     version: Mapped[int] = mapped_column(Integer)
     published_by: Mapped[str] = mapped_column(String(64), default="")
     publish_target: Mapped[str] = mapped_column(String(128), default="database")
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=datetime.utcnow)
+    # Present in the Go schema for Nacos-backed publishes; it is internal and
+    # intentionally omitted from the public response model.
+    nacos_data_id: Mapped[str] = mapped_column(String(128), default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

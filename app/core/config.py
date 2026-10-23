@@ -109,7 +109,6 @@ class Settings(BaseSettings):
         case_sensitive=False,
     )
 
-    #cors_origins：完成本模块的一步处理，并把结果返回给调用方。
     @property
     def cors_origins(self) -> list[str]:
         if self.cors_allowed_origins.strip() == "*":
@@ -117,7 +116,6 @@ class Settings(BaseSettings):
         return [item.strip() for item in self.cors_allowed_origins.split(",") if item.strip()]
 
 
-#获取 get_settings：完成本模块的一步处理，并把结果返回给调用方。
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
     return Settings()
