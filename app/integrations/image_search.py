@@ -1,22 +1,16 @@
 from __future__ import annotations
-# integrations/image_search.py：本模块的中文学习说明。
 
-# 图片向量检索。
-# 先把查询图片转成向量，再与商品图片向量计算余弦相似度。
-# 相似度越大表示方向越接近，最终按降序返回。
-# 空向量、损坏图片和远程失败必须被清晰处理。
-
-# 图片检索适配器：通过向量相似度寻找相关商品。
+# 外部服务适配器模块：统一对象存储、向量、重排和配置中心接口。
 
 import math
 import time
 from typing import Any
 
-from app.domain.models import ProductImageVector
-from app.integrations.image_embedding import ImageEmbeddingError, ImageEmbedder, LocalHistogramEmbedder
+from app.integrations.image_embedding import ImageEmbeddingError, ImageEmbedder
 from app.integrations.objectstore import ObjectStoreError
+
+
 def _product_payload(product, merchant, sku) -> dict[str, Any]:
-    """执行 _product_payload：接收参数 product、merchant、sku，完成本层的业务处理并返回结果；失败时向上抛出可处理异常。"""
     from app.domain.schemas import amount_string
 
     return {
@@ -28,8 +22,9 @@ def _product_payload(product, merchant, sku) -> dict[str, Any]:
         "sellingPoints": list(product.selling_points_json or []), "recommendReason": product.recommend_reason,
         "riskNotes": list(product.risk_notes_json or []),
     }
+
+
 def cosine(left: list[float], right: list[float]) -> float:
-    """执行 cosine：接收参数 left、right，完成本层的业务处理并返回结果；失败时向上抛出可处理异常。"""
     if not left or len(left) != len(right):
         return 0.0
     dot = sum(a * b for a, b in zip(left, right))
@@ -38,27 +33,26 @@ def cosine(left: list[float], right: list[float]) -> float:
     return dot / (left_norm * right_norm) if left_norm and right_norm else 0.0
 
 
+# 领域服务，编排多个组件完成一项业务操作。
 class ImageSearchService:
-    """ImageSearchService：封装同一类数据和行为，供上层模块通过稳定接口调用。"""
-    def __init__(self, repository, settings, object_store, embedder: ImageEmbedder, account_id: str = "", is_admin: bool = False) -> None:
-        """执行 __init__：接收参数 repository、settings、object_store、embedder、account_id、is_admin，完成本层的业务处理并返回结果；失败时向上抛出可处理异常。"""
+    def __init__(self, repository, settings, object_store, embedder: ImageEmbedder, account_id: str = "", is_admin: bool = False, vector_provider=None) -> None:
         self.repository = repository
         self.settings = settings
         self.object_store = object_store
         self.embedder = embedder
         self.account_id = account_id
         self.is_admin = is_admin
+        self.vector_provider = vector_provider
 
     @staticmethod
     def file_id_from_url(value: str) -> str:
-        """执行 file_id_from_url：接收参数 value，完成本层的业务处理并返回结果；失败时向上抛出可处理异常。"""
         marker = "/api/v1/files/"
         if marker not in value:
             return ""
         rest = value.split(marker, 1)[1].split("?", 1)[0].split("#", 1)[0].strip("/")
         return rest.split("/", 1)[0] if rest.startswith("file_") else ""
+
     async def _query_vector(self, *, file_id: str, object_key: str, image_url: str, data: bytes | None, content_type: str = "") -> tuple[list[float], int]:
-        """执行 _query_vector：接收参数 file_id、object_key、image_url、data、content_type，完成本层的业务处理并返回结果；失败时向上抛出可处理异常。"""
         if data is not None:
             return await self.embedder.embed_bytes(data, content_type), 0
         if file_id:
@@ -73,20 +67,27 @@ class ImageSearchService:
             obj = await self.object_store.get(object_key)
             return await self.embedder.embed_bytes(obj.data, obj.content_type), int((time.perf_counter() - started) * 1000)
         return await self.embedder.embed_source(image_url), 0
-    async def _stored_vectors(self, vector: list[float]) -> list[tuple[float, dict[str, Any]]]:
-        """执行 _stored_vectors：接收参数 vector，完成本层的业务处理并返回结果；失败时向上抛出可处理异常。"""
+
+    async def _milvus_vectors(self, vector: list[float]) -> list[tuple[float, dict[str, Any]]]:
+        if self.vector_provider is None:
+            return []
+        try:
+            hits = await self.vector_provider.search_image(vector, 50)
+        except (OSError, RuntimeError, ValueError, TypeError):
+            return []
         vectors: list[tuple[float, dict[str, Any]]] = []
-        rows: list[ProductImageVector] = await self.repository.list_product_image_vectors(self.embedder.provider, len(vector))
-        for row in rows:
-            score = cosine(vector, [float(value) for value in (row.embedding_json or [])])
-            record = await self.repository.get_product_record(row.product_id)
+        for hit in hits:
+            product_id = str(hit.get("product_id") or "")
+            if not product_id:
+                continue
+            record = await self.repository.get_product_record(product_id)
             if record is None:
                 continue
             product, merchant, sku = record
-            vectors.append((score, _product_payload(product, merchant, sku)))
+            vectors.append((float(hit.get("distance") or hit.get("score") or 0.0), _product_payload(product, merchant, sku)))
         return vectors
+
     async def search(self, *, file_id: str = "", object_key: str = "", image_url: str = "", data: bytes | None = None, content_type: str = "", top_k: int = 5) -> dict[str, Any]:
-        """执行 search：接收参数 file_id、object_key、image_url、data、content_type、top_k，完成本层的业务处理并返回结果；失败时向上抛出可处理异常。"""
         started = time.perf_counter()
         file_id = file_id.strip()
         object_key = object_key.strip()
@@ -107,21 +108,7 @@ class ImageSearchService:
             raise error
         embedding_ms = int((time.perf_counter() - embedding_started) * 1000)
         search_started = time.perf_counter()
-        scored = await self._stored_vectors(vector)
-        if not scored and isinstance(self.embedder, LocalHistogramEmbedder):
-            # Local fallback only considers local product images. It never fans out to
-            # arbitrary remote URLs from a user request.
-            for product, merchant, sku in await self.repository.list_image_products():
-                sources = [product.image_url, *(product.image_urls_json or [])]
-                for source in sources:
-                    if not source or source.lower().startswith(("http://", "https://")):
-                        continue
-                    try:
-                        candidate = await self.embedder.embed_source(source)
-                    except ImageEmbeddingError:
-                        continue
-                    scored.append((cosine(vector, candidate), _product_payload(product, merchant, sku)))
-                    break
+        scored = await self._milvus_vectors(vector)
         scored.sort(key=lambda item: (-item[0], item[1].get("productId", "")))
         items: list[dict[str, Any]] = []
         seen: set[str] = set()
