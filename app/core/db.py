@@ -202,6 +202,10 @@ async def _ensure_runtime_defaults(session: AsyncSession) -> None:
     """Fill the configuration/prompt catalog when opening a Go-created database."""
     defaults = [
         ("ai.enabled", "false", "bool", "是否启用真实模型调用", "app", False),
+        ("ai.base_url", "", "string", "文本模型 Base URL；留空使用环境变量", "app", False),
+        ("ai.api_key", "", "string", "文本模型 API key；留空使用环境变量", "app", True),
+        ("ai.small_model", "", "string", "文本小模型；留空使用环境变量", "app", False),
+        ("ai.large_model", "", "string", "文本大模型；留空使用环境变量", "app", False),
         ("ai.active_provider", "qwen", "string", "当前生效模型供应商", "app", False),
         ("ai.qwen.base_url", "https://dashscope.aliyuncs.com/compatible-mode/v1", "string", "千问 OpenAI 兼容模型服务 Base URL", "app", False),
         ("ai.qwen.small_model", "qwen3.5-flash", "string", "千问低成本小模型", "app", False),

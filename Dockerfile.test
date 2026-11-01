@@ -1,0 +1,18 @@
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app/backend_py
+
+WORKDIR /app
+COPY pyproject.toml README.md /app/backend_py/
+COPY app /app/backend_py/app
+COPY migrations /app/backend_py/migrations
+COPY scripts /app/backend_py/scripts
+COPY tests /app/backend_py/tests
+COPY alembic.ini /app/backend_py/alembic.ini
+RUN python -m pip install --no-cache-dir --upgrade pip \
+    && python -m pip install --no-cache-dir "/app/backend_py[test]"
+
+WORKDIR /app/backend_py
+CMD ["python", "-m", "pytest", "tests", "-q"]

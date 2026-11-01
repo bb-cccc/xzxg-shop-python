@@ -1,0 +1,197 @@
+name: xzxg-shop-python
+
+services:
+  backend_py:
+    env_file:
+      - ../.env
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    environment:
+      APP_ENV: development
+      API_ADDR: 0.0.0.0:8080
+      DATABASE_SCHEMA_MODE: auto
+      DATABASE_URL: mysql+aiomysql://root:root@mysql:3306/xzxg_shop?charset=utf8mb4
+      RUN_MIGRATIONS: "true"
+      SEED_DEMO_DATA: "true"
+      REDIS_URL: redis://redis:6379/0
+      FILE_STORAGE_PROVIDER: minio
+      AVATAR_UPLOAD_ROOT: /app/backend_py/uploads/avatar
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      MINIO_BUCKET: xzxg-shop
+      NACOS_ADDR: http://nacos:8848
+      NACOS_GROUP: XZXG_SHOP
+      NACOS_DATA_ID: xzxg-shop-app-config.json
+      NACOS_PROMPT_DATA_ID: xzxg-shop-prompt-config.json
+      RAG_VECTOR_ENABLED: "true"
+      RAG_VECTOR_PROVIDER: milvus
+      MILVUS_ADDRESS: http://milvus:19530
+      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-local_hash}
+      EMBEDDING_DIMENSION: ${EMBEDDING_DIMENSION:-128}
+    ports:
+      - "8081:8080"
+    volumes:
+      - python_avatar_data:/app/backend_py/uploads/avatar
+      - ../quality/data/ecommerce_agent_dataset:/app/backend_py/quality/data/ecommerce_agent_dataset:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/api/v1/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+      milvus:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    depends_on:
+      backend_py:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: xzxg_shop
+    ports:
+      - "3307:3306"
+    volumes:
+      - python_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7
+    ports:
+      - "6380:6379"
+    volumes:
+      - python_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  minio:
+    # The upstream community image is no longer anonymously pullable. Silo is a
+    # MinIO-compatible community fork with public, pinned Docker Hub releases.
+    image: docker.io/pgsty/minio:RELEASE.2026-08-04T00-00-00Z
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: minio server /data --console-address ":9001"
+    ports:
+      - "9002:9000"
+      - "9003:9001"
+    volumes:
+      - python_minio_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9000/minio/health/live > /dev/null || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  nacos:
+    image: nacos/nacos-server:v2.3.2
+    platform: linux/amd64
+    environment:
+      MODE: standalone
+      NACOS_AUTH_ENABLE: "false"
+      JVM_XMS: 256m
+      JVM_XMX: 512m
+      JVM_XMN: 128m
+    ports:
+      - "8848:8848"
+      - "9848:9848"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8848/nacos/actuator/health > /dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    volumes:
+      - python_nacos_data:/home/nacos/data
+    restart: unless-stopped
+
+  etcd:
+    image: quay.io/coreos/etcd:v3.5.18
+    environment:
+      ETCD_AUTO_COMPACTION_MODE: revision
+      ETCD_AUTO_COMPACTION_RETENTION: "1000"
+      ETCD_QUOTA_BACKEND_BYTES: "4294967296"
+      ETCD_SNAPSHOT_COUNT: "50000"
+    command: >
+      etcd
+      -advertise-client-urls=http://etcd:2379
+      -listen-client-urls=http://0.0.0.0:2379
+      --data-dir=/etcd
+    ports:
+      - "2379:2379"
+    volumes:
+      - python_etcd_data:/etcd
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  milvus:
+    image: milvusdb/milvus:v2.5.10
+    command: ["milvus", "run", "standalone"]
+    environment:
+      ETCD_ENDPOINTS: etcd:2379
+      MINIO_ADDRESS: minio:9000
+      MINIO_ACCESS_KEY_ID: minioadmin
+      MINIO_SECRET_ACCESS_KEY: minioadmin
+    ports:
+      - "19530:19530"
+      - "9091:9091"
+    volumes:
+      - python_milvus_data:/var/lib/milvus
+    depends_on:
+      etcd:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9091/healthz > /dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 90s
+
+volumes:
+  python_mysql_data:
+  python_redis_data:
+  python_minio_data:
+  python_nacos_data:
+  python_etcd_data:
+  python_milvus_data:
+  python_avatar_data:
+

@@ -1,0 +1,105 @@
+services:
+  # The production application never mutates schema on startup. This one-shot
+  # service is the only production schema entry point and must finish before
+  # the API container is allowed to start.
+  migrate:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    env_file:
+      - ../.env.production
+    environment:
+      APP_ENV: production
+      DATABASE_SCHEMA_MODE: alembic
+      RUN_MIGRATIONS: "false"
+      SEED_DEMO_DATA: "false"
+      DATABASE_URL: mysql+aiomysql://root:${MYSQL_ROOT_PASSWORD}@mysql:3306/${MYSQL_DATABASE:-xzxg_shop}?charset=utf8mb4
+    command: ["python", "-m", "scripts.migrate"]
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: "no"
+
+  backend_py:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    env_file:
+      - ../.env.production
+    environment:
+      APP_ENV: production
+      API_ADDR: 0.0.0.0:8080
+      DATABASE_SCHEMA_MODE: alembic
+      RUN_MIGRATIONS: "false"
+      SEED_DEMO_DATA: "false"
+      DATABASE_URL: mysql+aiomysql://root:${MYSQL_ROOT_PASSWORD}@mysql:3306/${MYSQL_DATABASE:-xzxg_shop}?charset=utf8mb4
+      REDIS_URL: redis://redis:6379/0
+      FILE_STORAGE_PROVIDER: minio
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      NACOS_ADDR: http://nacos:8848
+      NACOS_USERNAME: ${NACOS_USERNAME}
+      NACOS_PASSWORD: ${NACOS_PASSWORD}
+      NACOS_AUTH_ENABLE: "true"
+      RAG_VECTOR_ENABLED: "true"
+      RAG_VECTOR_PROVIDER: milvus
+      MILVUS_ADDRESS: http://milvus:19530
+    ports: !reset []
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+      milvus:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  mysql:
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-xzxg_shop}
+    ports: !reset []
+
+  redis:
+    ports: !reset []
+
+  minio:
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports: !reset []
+
+  nacos:
+    environment:
+      NACOS_AUTH_ENABLE: "true"
+      NACOS_AUTH_IDENTITY_KEY: ${NACOS_AUTH_IDENTITY_KEY}
+      NACOS_AUTH_IDENTITY_VALUE: ${NACOS_AUTH_IDENTITY_VALUE}
+      NACOS_AUTH_TOKEN: ${NACOS_AUTH_TOKEN}
+    ports: !reset []
+
+  etcd:
+    ports: !reset []
+
+  milvus:
+    environment:
+      MINIO_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+      MINIO_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+    ports: !reset []
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    ports: !override
+      - "80:80"
+    depends_on:
+      backend_py:
+        condition: service_healthy
+    restart: unless-stopped
+
